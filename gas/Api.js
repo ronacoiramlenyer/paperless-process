@@ -141,11 +141,13 @@ async function getPdfBytesForDownload(documentId) {
 }
 
 /**
- * signatureType: 'draw' | 'type'
+ * signatureType: 'draw' | 'upload' | 'type'
  * typedText: string (for 'type')
- * signatureImageBase64: base64 PNG (for 'draw')
+ * signatureImageBase64: base64 image data (for 'draw' - always PNG from the
+ *   canvas; for 'upload' - a signer's own signature image file)
+ * imageMimeType: 'image/png' | 'image/jpeg' (for 'upload'; 'draw' is always PNG)
  */
-function submitSignature(documentId, signatureType, typedText, signatureImageBase64) {
+function submitSignature(documentId, signatureType, typedText, signatureImageBase64, imageMimeType) {
   var email = currentUserEmail_();
   var document = getDocumentById(documentId);
   if (!document) throw new Error("Document not found");
@@ -157,7 +159,7 @@ function submitSignature(documentId, signatureType, typedText, signatureImageBas
   var turn = isSignersTurn_(document, signer);
   if (!turn.ok) throw new Error("Waiting on " + (turn.waitingOnName || "a prior signer") + " to sign first");
 
-  var params = { signatureType: signatureType, typedText: null, signatureImageFileId: null };
+  var params = { signatureType: signatureType, typedText: null, signatureImageFileId: null, signatureImageMimeType: null };
 
   if (signatureType === "type") {
     if (!typedText || !String(typedText).trim()) throw new Error("Typed signature text is required");
@@ -167,8 +169,17 @@ function submitSignature(documentId, signatureType, typedText, signatureImageBas
     var pngBytes = base64ToBytes_(signatureImageBase64);
     if (pngBytes.length > 2 * 1024 * 1024) throw new Error("Signature image too large");
     params.signatureImageFileId = saveBytesToDrive_(pngBytes, "signature-" + signer.id + ".png", "image/png");
+    params.signatureImageMimeType = "image/png";
+  } else if (signatureType === "upload") {
+    if (!signatureImageBase64) throw new Error("A signature image is required");
+    if (imageMimeType !== "image/png" && imageMimeType !== "image/jpeg") throw new Error("Signature image must be PNG or JPEG");
+    var uploadedBytes = base64ToBytes_(signatureImageBase64);
+    if (uploadedBytes.length > 5 * 1024 * 1024) throw new Error("Signature image exceeds the 5MB limit");
+    var ext = imageMimeType === "image/jpeg" ? ".jpg" : ".png";
+    params.signatureImageFileId = saveBytesToDrive_(uploadedBytes, "signature-" + signer.id + ext, imageMimeType);
+    params.signatureImageMimeType = imageMimeType;
   } else {
-    throw new Error("signatureType must be 'draw' or 'type'");
+    throw new Error("signatureType must be 'draw', 'upload' or 'type'");
   }
 
   var result = recordSignature(signer, params, email);

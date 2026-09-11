@@ -68,8 +68,11 @@
       '<p class="muted">Signing as ' + escapeHtml2(signer.name) + " (" + escapeHtml2(signer.email) + '). Review the document below, then sign — no download needed.</p></div>' +
       '<div class="card"><h2>Document</h2><div id="pages"><p class="muted">Loading document…</p></div></div>' +
       '<div class="card"><h2>Your signature</h2><div id="sigError"></div>' +
-      '<div class="tabs"><button type="button" id="tabDraw" class="active">Draw</button><button type="button" id="tabType">Type</button></div>' +
-      '<div id="drawPane"><canvas class="sig-pad" id="sigCanvas" style="width:420px;height:150px"></canvas>' +
+      '<div class="tabs"><button type="button" id="tabUpload" class="active">Upload image</button><button type="button" id="tabDraw">Draw</button><button type="button" id="tabType">Type</button></div>' +
+      '<div id="uploadPane"><p class="muted">Upload a photo or scan of your actual signature (PNG or JPEG, max 5MB).</p>' +
+      '<input type="file" id="sigFile" accept="image/png,image/jpeg">' +
+      '<div style="margin-top:10px"><img id="sigPreview" style="display:none;max-width:300px;max-height:120px;border:1px solid var(--border);border-radius:8px"></div></div>' +
+      '<div id="drawPane" style="display:none"><canvas class="sig-pad" id="sigCanvas" style="width:420px;height:150px"></canvas>' +
       '<div style="margin-top:8px"><button type="button" class="secondary" id="clearBtn">Clear</button></div></div>' +
       '<div id="typePane" style="display:none"><div class="field"><input type="text" id="typedText" placeholder="Type your full name"></div>' +
       '<div class="typed-signature-preview" id="typedPreview"></div></div>' +
@@ -78,21 +81,44 @@
       '<button type="button" class="danger" id="declineBtn">Decline to sign</button></div></div>'
     );
 
-    var mode = "draw";
+    var mode = "upload";
     var pad = initSignaturePad(document.getElementById("sigCanvas"));
+    var uploadedImage = null; // { base64, mimeType }
 
+    document.getElementById("tabUpload").addEventListener("click", function () { setMode("upload"); });
     document.getElementById("tabDraw").addEventListener("click", function () { setMode("draw"); });
     document.getElementById("tabType").addEventListener("click", function () { setMode("type"); });
     function setMode(m) {
       mode = m;
+      document.getElementById("tabUpload").classList.toggle("active", m === "upload");
       document.getElementById("tabDraw").classList.toggle("active", m === "draw");
       document.getElementById("tabType").classList.toggle("active", m === "type");
+      document.getElementById("uploadPane").style.display = m === "upload" ? "" : "none";
       document.getElementById("drawPane").style.display = m === "draw" ? "" : "none";
       document.getElementById("typePane").style.display = m === "type" ? "" : "none";
     }
     document.getElementById("clearBtn").addEventListener("click", function () { pad.clear(); });
     document.getElementById("typedText").addEventListener("input", function (e) {
       document.getElementById("typedPreview").textContent = e.target.value;
+    });
+    document.getElementById("sigFile").addEventListener("change", function (e) {
+      var file = e.target.files[0];
+      var sigError = document.getElementById("sigError");
+      sigError.innerHTML = "";
+      uploadedImage = null;
+      if (!file) return;
+      if (file.type !== "image/png" && file.type !== "image/jpeg") {
+        return showError(sigError, "Signature image must be PNG or JPEG.");
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        return showError(sigError, "Signature image exceeds the 5MB limit.");
+      }
+      fileToBase64(file).then(function (base64) {
+        uploadedImage = { base64: base64, mimeType: file.type };
+        var preview = document.getElementById("sigPreview");
+        preview.src = "data:" + file.type + ";base64," + base64;
+        preview.style.display = "";
+      });
     });
 
     waitForPdfJs().then(function () {
@@ -110,6 +136,9 @@
     document.getElementById("signBtn").addEventListener("click", function () {
       var sigError = document.getElementById("sigError");
       sigError.innerHTML = "";
+      if (mode === "upload" && !uploadedImage) {
+        return showError(sigError, "Upload an image of your signature to sign.");
+      }
       if (mode === "type" && !document.getElementById("typedText").value.trim()) {
         return showError(sigError, "Type your name to sign.");
       }
@@ -120,8 +149,9 @@
       btn.disabled = true;
       btn.textContent = "Signing…";
       var typedText = mode === "type" ? document.getElementById("typedText").value.trim() : null;
-      var imageBase64 = mode === "draw" ? pad.toBase64Png() : null;
-      runServer("submitSignature", documentId, mode, typedText, imageBase64).then(function () {
+      var imageBase64 = mode === "draw" ? pad.toBase64Png() : mode === "upload" ? uploadedImage.base64 : null;
+      var imageMimeType = mode === "upload" ? uploadedImage.mimeType : null;
+      runServer("submitSignature", documentId, mode, typedText, imageBase64, imageMimeType).then(function () {
         return runServer("getSignSession", documentId);
       }).then(renderSession).catch(function (err) {
         showError(sigError, err.message || String(err));

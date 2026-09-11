@@ -17,7 +17,7 @@ var SHEET_NAMES = {
 
 var SHEET_HEADERS = {
   Documents: ["id", "title", "driveFileId", "pageCount", "ownerEmail", "ownerName", "routingMode", "status", "createdAt", "completedAt"],
-  Signers: ["id", "documentId", "name", "email", "orderIndex", "status", "signatureType", "typedText", "signatureImageFileId", "signedAt", "declineReason"],
+  Signers: ["id", "documentId", "name", "email", "orderIndex", "status", "signatureType", "typedText", "signatureImageFileId", "signatureImageMimeType", "signedAt", "declineReason"],
   SignatureFields: ["id", "documentId", "signerId", "pageIndex", "x", "y", "width", "height"],
   AuditLog: ["id", "documentId", "signerId", "eventType", "detail", "actingEmail", "createdAt"],
 };
@@ -144,6 +144,7 @@ function createDocument(input, documentId, driveFileId, pageCount) {
       signatureType: "",
       typedText: "",
       signatureImageFileId: "",
+      signatureImageMimeType: "",
       signedAt: "",
       declineReason: "",
     };
@@ -245,7 +246,7 @@ function markSignerViewed(signer, actingEmail) {
 }
 
 /**
- * params: { signatureType: 'draw'|'type', typedText, signatureImageFileId }
+ * params: { signatureType: 'draw'|'upload'|'type', typedText, signatureImageFileId, signatureImageMimeType }
  * Returns { allSigned, document }. Uses LockService since "is everyone done"
  * is a read-then-write sequence that must be serialized against concurrent
  * signers finishing at nearly the same time (parallel routing).
@@ -260,6 +261,7 @@ function recordSignature(signer, params, actingEmail) {
       signatureType: params.signatureType,
       typedText: params.typedText || "",
       signatureImageFileId: params.signatureImageFileId || "",
+      signatureImageMimeType: params.signatureImageMimeType || "",
       signedAt: now,
     });
     appendAudit_(signer.documentId, signer.id, "signed", "", actingEmail);

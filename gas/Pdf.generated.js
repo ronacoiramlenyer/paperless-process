@@ -19651,10 +19651,11 @@
       const page = pages[entry.pageIndex];
       if (!page) continue;
       const { x, y, width, height } = entry;
-      if (entry.signatureType === "draw" && entry.signatureImageBytes) {
-        const png = await pdfDoc.embedPng(entry.signatureImageBytes);
-        const scaled = png.scaleToFit(width, height);
-        page.drawImage(png, {
+      if ((entry.signatureType === "draw" || entry.signatureType === "upload") && entry.signatureImageBytes) {
+        const isJpeg = entry.signatureImageMimeType === "image/jpeg" || entry.signatureImageMimeType === "image/jpg";
+        const image = isJpeg ? await pdfDoc.embedJpg(entry.signatureImageBytes) : await pdfDoc.embedPng(entry.signatureImageBytes);
+        const scaled = image.scaleToFit(width, height);
+        page.drawImage(image, {
           x: x + (width - scaled.width) / 2,
           y: y + (height - scaled.height) / 2,
           width: scaled.width,

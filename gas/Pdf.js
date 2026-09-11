@@ -77,7 +77,7 @@ function compositeSignedPdfForDocument(documentId) {
       var field = fieldBySignerId[signer.id];
       if (!field) return null;
       var signatureImageBytes = null;
-      if (signer.signatureType === "draw" && signer.signatureImageFileId) {
+      if ((signer.signatureType === "draw" || signer.signatureType === "upload") && signer.signatureImageFileId) {
         signatureImageBytes = readBytesFromDrive_(signer.signatureImageFileId);
       }
       return {
@@ -89,6 +89,7 @@ function compositeSignedPdfForDocument(documentId) {
         signatureType: signer.signatureType,
         typedText: signer.typedText || null,
         signatureImageBytes: signatureImageBytes,
+        signatureImageMimeType: signer.signatureImageMimeType || null,
       };
     })
     .filter(function (e) { return e !== null; });

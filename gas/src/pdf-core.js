@@ -14,10 +14,14 @@ async function getPageCount(originalBytes) {
 /**
  * signed: array of {
  *   pageIndex, x, y, width, height,
- *   signatureType: 'draw' | 'type',
+ *   signatureType: 'draw' | 'upload' | 'type',
  *   typedText: string | null,
  *   signatureImageBytes: Uint8Array | null,
+ *   signatureImageMimeType: 'image/png' | 'image/jpeg' | null,
  * }
+ * 'draw' (canvas) is always PNG. 'upload' (a signer's own signature image
+ * file) can be PNG or JPEG - signatureImageMimeType says which so the right
+ * pdf-lib embed call is used.
  */
 async function compositeSignedPdf(originalBytes, signed) {
   const pdfDoc = await PDFDocument.load(originalBytes);
@@ -29,10 +33,11 @@ async function compositeSignedPdf(originalBytes, signed) {
     if (!page) continue;
     const { x, y, width, height } = entry;
 
-    if (entry.signatureType === "draw" && entry.signatureImageBytes) {
-      const png = await pdfDoc.embedPng(entry.signatureImageBytes);
-      const scaled = png.scaleToFit(width, height);
-      page.drawImage(png, {
+    if ((entry.signatureType === "draw" || entry.signatureType === "upload") && entry.signatureImageBytes) {
+      const isJpeg = entry.signatureImageMimeType === "image/jpeg" || entry.signatureImageMimeType === "image/jpg";
+      const image = isJpeg ? await pdfDoc.embedJpg(entry.signatureImageBytes) : await pdfDoc.embedPng(entry.signatureImageBytes);
+      const scaled = image.scaleToFit(width, height);
+      page.drawImage(image, {
         x: x + (width - scaled.width) / 2,
         y: y + (height - scaled.height) / 2,
         width: scaled.width,
