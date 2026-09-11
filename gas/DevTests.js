@@ -45,3 +45,17 @@ async function testCreateEnvelope() {
 function testGetOwnerDashboard(documentId) {
   Logger.log(getOwnerDashboard(documentId));
 }
+
+/**
+ * Diagnostic: isolates whether the setTimeout/clearTimeout polyfill in
+ * Pdf.js is actually in effect, independent of pdf-lib entirely. If this
+ * itself throws ReferenceError, the polyfill isn't taking effect and the
+ * fix needs a different approach; if it logs "called", the polyfill works
+ * and the real ReferenceError is coming from somewhere else.
+ */
+function testSetTimeoutPolyfill() {
+  Logger.log("typeof setTimeout: " + typeof setTimeout);
+  var result = "NOT CALLED";
+  setTimeout(function () { result = "CALLED"; }, 0);
+  Logger.log("result: " + result);
+}
