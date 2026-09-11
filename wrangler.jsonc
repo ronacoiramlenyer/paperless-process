@@ -25,6 +25,9 @@
   ],
   "vars": {
     "APP_BASE_URL": "https://paperless-process.learneasytoday.workers.dev",
-    "EMAIL_FROM": "onboarding@resend.dev"
+    // Must be an address verified as a Sender in Brevo (Senders, Domains &
+    // Dedicated IPs → Senders → Add a sender). Change this to whichever
+    // address you verify there.
+    "EMAIL_FROM": "r.canor.lasalle@gmail.com"
   }
 }

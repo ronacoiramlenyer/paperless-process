@@ -4,7 +4,7 @@ export interface Env {
   ASSETS: Fetcher;
   APP_BASE_URL: string;
   EMAIL_FROM: string;
-  RESEND_API_KEY?: string;
+  BREVO_API_KEY?: string;
 }
 
 export type RoutingMode = "parallel" | "sequential";

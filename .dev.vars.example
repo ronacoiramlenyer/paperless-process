@@ -1,3 +1,5 @@
 # Copy this file to `.dev.vars` (gitignored) for local development.
-# Get a free API key at https://resend.com — no credit card required.
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Get a free API key at https://app.brevo.com/settings/keys/api — no credit
+# card required. You'll also need to verify a sender email address under
+# Senders, Domains & Dedicated IPs → Senders in the Brevo dashboard.
+BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

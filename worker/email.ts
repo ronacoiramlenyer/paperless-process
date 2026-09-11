@@ -11,23 +11,28 @@ function layout(heading: string, bodyHtml: string, ctaLabel: string, ctaUrl: str
 }
 
 /**
- * Best-effort email send via Resend. Silently no-ops when RESEND_API_KEY
+ * Best-effort email send via Brevo. Silently no-ops when BREVO_API_KEY
  * isn't configured, so the app works (without notifications) before an
  * owner sets one up, and a mail-provider hiccup never fails a document
  * action. Call sites should fire this via ctx.waitUntil() to avoid adding
  * latency to the response.
  */
-async function sendMail(env: Env, to: string, subject: string, html: string): Promise<void> {
-  if (!env.RESEND_API_KEY) return;
+async function sendMail(env: Env, senderName: string, to: string, subject: string, html: string): Promise<void> {
+  if (!env.BREVO_API_KEY) return;
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.EMAIL_FROM, to, subject, html }),
+      headers: { "api-key": env.BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        sender: { name: senderName, email: env.EMAIL_FROM },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+      }),
     });
-    if (!res.ok) console.error("Resend send failed", res.status, await res.text());
+    if (!res.ok) console.error("Brevo send failed", res.status, await res.text());
   } catch (err) {
-    console.error("Resend send threw", err);
+    console.error("Brevo send threw", err);
   }
 }
 
@@ -40,7 +45,7 @@ export async function sendSignRequestEmail(env: Env, document: DocumentRow, sign
     "Review & sign",
     url
   );
-  await sendMail(env, signer.email, `Please sign: ${document.title}`, html);
+  await sendMail(env, document.owner_name, signer.email, `Please sign: ${document.title}`, html);
 }
 
 export async function sendCompletionEmailToOwner(env: Env, document: DocumentRow): Promise<void> {
@@ -52,7 +57,7 @@ export async function sendCompletionEmailToOwner(env: Env, document: DocumentRow
     "View & download",
     url
   );
-  await sendMail(env, document.owner_email, `Fully signed: ${document.title}`, html);
+  await sendMail(env, "Paperless Process", document.owner_email, `Fully signed: ${document.title}`, html);
 }
 
 export async function sendCompletionEmailToSigner(env: Env, document: DocumentRow, signer: SignerRow): Promise<void> {
@@ -64,5 +69,5 @@ export async function sendCompletionEmailToSigner(env: Env, document: DocumentRo
     "View document",
     url
   );
-  await sendMail(env, signer.email, `Fully signed: ${document.title}`, html);
+  await sendMail(env, "Paperless Process", signer.email, `Fully signed: ${document.title}`, html);
 }

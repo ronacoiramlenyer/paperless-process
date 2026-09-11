@@ -17,11 +17,11 @@ download-sign-upload cycle, no separate tool to re-upload to.
 - **Track** (`/owner/:ownerToken`): live status per signer, a full audit
   trail (viewed/signed/declined with timestamp, IP, user agent), and a
   download of the current (or final, once complete) signed PDF.
-- **Email** (optional, via [Resend](https://resend.com)): when configured,
+- **Email** (optional, via [Brevo](https://brevo.com)): when configured,
   signers are emailed their sign link automatically — immediately for
   parallel routing, or as each signer's turn comes up for sequential
   routing — and the owner + all signers get a "fully signed" email once
-  everyone's done. Without a Resend API key configured, the app still works
+  everyone's done. Without a Brevo API key configured, the app still works
   fully; the owner just has to share the copy-able links themselves.
 
 The uploaded PDF is never mutated in place. Each signature (drawn PNG or
@@ -37,7 +37,7 @@ signers never race on the same file.
 - **React + Vite**, served as static assets by the same Worker
 - **pdf.js** for in-browser rendering, **pdf-lib** for server-side signature
   stamping/compositing
-- **[Resend](https://resend.com)** (optional) — sign-request and
+- **[Brevo](https://brevo.com)** (optional) — sign-request and
   completion emails
 
 ## Local development
@@ -60,8 +60,8 @@ Open the Vite dev server URL. For a production-like single-process check,
 run `npm run build && npm run dev:worker` and open http://localhost:8787.
 
 To send real emails locally, copy `.dev.vars.example` to `.dev.vars` (already
-gitignored) and fill in a [Resend](https://resend.com) API key (free tier,
-no card required). Without it, the app runs the same but skips sending mail.
+gitignored) and fill in a [Brevo](https://brevo.com) API key (free tier, no
+card required). Without it, the app runs the same but skips sending mail.
 
 ## Deploying to Cloudflare
 
@@ -86,19 +86,24 @@ no card required). Without it, the app runs the same but skips sending mail.
    ```bash
    npm run deploy
    ```
-5. (Optional, for email) Add a `RESEND_API_KEY` secret so the Worker can
-   send mail:
-   - If deploying via CLI: `npx wrangler secret put RESEND_API_KEY`
+5. (Optional, for email) Add a `BREVO_API_KEY` secret so the Worker can send
+   mail:
+   - Sign up at [brevo.com](https://brevo.com) (free, no card) and create an
+     API key under **Settings → SMTP & API → API Keys**.
+   - Verify a sender address under **Senders, Domains & Dedicated IPs →
+     Senders → Add a sender** — Brevo emails you a confirmation link, no DNS
+     records needed. Set `vars.EMAIL_FROM` in `wrangler.jsonc` to that exact
+     address (already defaulted to `r.canor.lasalle@gmail.com` — change it
+     if you verify a different one).
+   - If deploying via CLI: `npx wrangler secret put BREVO_API_KEY`
    - If deploying via Cloudflare's Git integration (Workers Builds): add it
      in the dashboard under your Worker → **Settings → Variables and
-     Secrets** → add `RESEND_API_KEY` as a **Secret** (encrypted) — not a
-     plaintext variable.
-   - Without a verified sending domain in Resend, the default
-     `onboarding@resend.dev` sender can only deliver to the email address
-     your Resend account itself is registered with — fine for testing, but
-     real signers at other addresses won't receive mail until you
-     [verify a domain](https://resend.com/domains) in Resend and update
-     `vars.EMAIL_FROM` in `wrangler.jsonc` to an address on that domain.
+     Secrets** → add `BREVO_API_KEY` as a **Secret** (encrypted) — not a
+     plaintext variable. Click **Save and deploy**.
+   - Unlike some providers, Brevo's free plan lets a verified single sender
+     email any recipient right away — no domain/DNS verification required
+     to unblock real signers. Domain authentication is still recommended
+     later for best inbox deliverability (particularly to Gmail/Yahoo).
 
 ## Known simplifications (MVP / KISS)
 
