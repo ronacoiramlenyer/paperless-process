@@ -1,0 +1,311 @@
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --border: #e2e5ec;
+  --text: #1c2130;
+  --muted: #667085;
+  --primary: #2f5fff;
+  --primary-dark: #1f45cc;
+  --success: #17845a;
+  --danger: #c93a3a;
+  --warning: #b8791a;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1 {
+  font-size: 22px;
+}
+
+h2 {
+  font-size: 17px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+input[type="text"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--primary);
+  color: white;
+}
+
+button:hover {
+  background: var(--primary-dark);
+}
+
+button:disabled {
+  background: #b7c0d8;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.secondary:hover {
+  background: #f0f1f5;
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+.signer-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.pdf-page-wrap {
+  position: relative;
+  display: inline-block;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+
+.pdf-page-wrap canvas {
+  display: block;
+}
+
+.field-box {
+  position: absolute;
+  border: 2px solid var(--primary);
+  background: rgba(47, 95, 255, 0.12);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  pointer-events: none;
+}
+
+.field-box.placing {
+  cursor: crosshair;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-pending {
+  background: #eef0f5;
+  color: var(--muted);
+}
+
+.status-viewed {
+  background: #fdf1de;
+  color: var(--warning);
+}
+
+.status-signed {
+  background: #e2f6ed;
+  color: var(--success);
+}
+
+.status-declined {
+  background: #fbe6e6;
+  color: var(--danger);
+}
+
+.status-sent {
+  background: #eaf0ff;
+  color: var(--primary-dark);
+}
+
+.status-completed {
+  background: #e2f6ed;
+  color: var(--success);
+}
+
+.status-voided {
+  background: #fbe6e6;
+  color: var(--danger);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.error-banner {
+  background: #fbe6e6;
+  color: var(--danger);
+  border: 1px solid #f3bcbc;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.success-banner {
+  background: #e2f6ed;
+  color: var(--success);
+  border: 1px solid #b9e6cf;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.link-row code {
+  flex: 1;
+  background: #f0f1f5;
+  padding: 6px 8px;
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.sig-pad {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  touch-action: none;
+  background: #fff;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.tabs button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.typed-signature-preview {
+  font-family: "Brush Script MT", cursive;
+  font-size: 32px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  min-height: 60px;
+}
