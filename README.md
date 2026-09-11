@@ -17,6 +17,12 @@ download-sign-upload cycle, no separate tool to re-upload to.
 - **Track** (`/owner/:ownerToken`): live status per signer, a full audit
   trail (viewed/signed/declined with timestamp, IP, user agent), and a
   download of the current (or final, once complete) signed PDF.
+- **Email** (optional, via [Resend](https://resend.com)): when configured,
+  signers are emailed their sign link automatically — immediately for
+  parallel routing, or as each signer's turn comes up for sequential
+  routing — and the owner + all signers get a "fully signed" email once
+  everyone's done. Without a Resend API key configured, the app still works
+  fully; the owner just has to share the copy-able links themselves.
 
 The uploaded PDF is never mutated in place. Each signature (drawn PNG or
 typed text + field position) is stored separately, and the final PDF is
@@ -31,6 +37,8 @@ signers never race on the same file.
 - **React + Vite**, served as static assets by the same Worker
 - **pdf.js** for in-browser rendering, **pdf-lib** for server-side signature
   stamping/compositing
+- **[Resend](https://resend.com)** (optional) — sign-request and
+  completion emails
 
 ## Local development
 
@@ -50,6 +58,10 @@ npm run dev:frontend
 
 Open the Vite dev server URL. For a production-like single-process check,
 run `npm run build && npm run dev:worker` and open http://localhost:8787.
+
+To send real emails locally, copy `.dev.vars.example` to `.dev.vars` (already
+gitignored) and fill in a [Resend](https://resend.com) API key (free tier,
+no card required). Without it, the app runs the same but skips sending mail.
 
 ## Deploying to Cloudflare
 
@@ -74,13 +86,22 @@ run `npm run build && npm run dev:worker` and open http://localhost:8787.
    ```bash
    npm run deploy
    ```
+5. (Optional, for email) Add a `RESEND_API_KEY` secret so the Worker can
+   send mail:
+   - If deploying via CLI: `npx wrangler secret put RESEND_API_KEY`
+   - If deploying via Cloudflare's Git integration (Workers Builds): add it
+     in the dashboard under your Worker → **Settings → Variables and
+     Secrets** → add `RESEND_API_KEY` as a **Secret** (encrypted) — not a
+     plaintext variable.
+   - Without a verified sending domain in Resend, the default
+     `onboarding@resend.dev` sender can only deliver to the email address
+     your Resend account itself is registered with — fine for testing, but
+     real signers at other addresses won't receive mail until you
+     [verify a domain](https://resend.com/domains) in Resend and update
+     `vars.EMAIL_FROM` in `wrangler.jsonc` to an address on that domain.
 
 ## Known simplifications (MVP / KISS)
 
-- No email sending yet — the owner shares signer links manually (copy
-  buttons are provided on the confirmation screen and the dashboard).
-  Wiring up an email provider only touches the `POST /api/documents`
-  response in `worker/routes/documents.ts`.
 - No accounts/login: an envelope's owner dashboard and each signer's
   session are protected by an unguessable random token in the URL, not a
   user login. Good enough for an internal tool; add real auth if the app

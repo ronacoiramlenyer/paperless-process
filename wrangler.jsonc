@@ -24,6 +24,7 @@
     }
   ],
   "vars": {
-    "APP_BASE_URL": "http://localhost:8787"
+    "APP_BASE_URL": "http://localhost:8787",
+    "EMAIL_FROM": "onboarding@resend.dev"
   }
 }

@@ -8,6 +8,7 @@ import {
   listSignersByDocumentId,
   newId,
 } from "../db";
+import { sendSignRequestEmail } from "../email";
 import type { CreateEnvelopeInput, Env } from "../types";
 
 const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB
@@ -59,6 +60,9 @@ documentsRoute.post("/", async (c) => {
   await c.env.DOCS.put(pdfKey, bytes);
 
   const { document, signers } = await createDocument(c.env, input, documentId, pdfKey, pageCount);
+
+  const signersToNotify = document.routing_mode === "parallel" ? signers : signers.filter((s) => s.order_index === 0);
+  c.executionCtx.waitUntil(Promise.all(signersToNotify.map((s) => sendSignRequestEmail(c.env, document, s))).then(() => {}));
 
   const base = c.env.APP_BASE_URL.replace(/\/$/, "");
   return c.json({

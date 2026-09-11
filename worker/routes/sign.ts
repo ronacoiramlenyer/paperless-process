@@ -10,9 +10,28 @@ import {
   recordSignature,
 } from "../db";
 import { renderComposite } from "./documents";
-import type { Env, SignerRow } from "../types";
+import { sendCompletionEmailToOwner, sendCompletionEmailToSigner, sendSignRequestEmail } from "../email";
+import type { DocumentRow, Env, SignerRow } from "../types";
 
 export const signRoute = new Hono<{ Bindings: Env }>();
+
+/** Fires the right notification(s) after a signature is recorded, without blocking the response. */
+function notifyAfterSignature(c: { env: Env; executionCtx: { waitUntil: (p: Promise<unknown>) => void } }, document: DocumentRow) {
+  c.executionCtx.waitUntil(
+    (async () => {
+      const signers = await listSignersByDocumentId(c.env, document.id);
+      if (document.status === "completed") {
+        await Promise.all([
+          sendCompletionEmailToOwner(c.env, document),
+          ...signers.map((s) => sendCompletionEmailToSigner(c.env, document, s)),
+        ]);
+      } else if (document.routing_mode === "sequential") {
+        const next = signers.filter((s) => s.status === "pending" || s.status === "viewed").sort((a, b) => a.order_index - b.order_index)[0];
+        if (next) await sendSignRequestEmail(c.env, document, next);
+      }
+    })()
+  );
+}
 
 function clientMeta(c: { req: { header: (name: string) => string | undefined } }) {
   return { ip: c.req.header("CF-Connecting-IP") ?? null, userAgent: c.req.header("User-Agent") ?? null };
@@ -88,6 +107,7 @@ signRoute.post("/:token", async (c) => {
       ip,
       userAgent
     );
+    notifyAfterSignature(c, result.document);
     return c.json({ allSigned: result.allSigned, documentStatus: result.document.status });
   }
 
@@ -101,6 +121,7 @@ signRoute.post("/:token", async (c) => {
     await c.env.DOCS.put(signatureImageKey, pngBytes);
 
     const result = await recordSignature(c.env, signer, { signatureType: "draw", typedText: null, signatureImageKey }, ip, userAgent);
+    notifyAfterSignature(c, result.document);
     return c.json({ allSigned: result.allSigned, documentStatus: result.document.status });
   }
 

@@ -90,7 +90,15 @@ export default function SignerView() {
     return (
       <div className="card">
         <h1>You're all set</h1>
-        <p className="success-banner">You signed “{document.title}”. The other party has been notified via their dashboard.</p>
+        <p className="success-banner">
+          You signed “{document.title}”.{" "}
+          {document.status === "completed" ? "Everyone has now signed." : "Waiting on the remaining signer(s)."}
+        </p>
+        <a href={`/api/sign/${token}/pdf`} target="_blank" rel="noreferrer">
+          <button type="button" className="secondary">
+            View / download document
+          </button>
+        </a>
       </div>
     );
   }
