@@ -13,8 +13,7 @@
     {
       "binding": "DB",
       "database_name": "paperless-process-db",
-      // Placeholder — replace after running `wrangler d1 create paperless-process-db`
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "83a93504-2a92-406f-8055-cb9d776dfbbe",
       "migrations_dir": "migrations"
     }
   ],
