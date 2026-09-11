@@ -6,6 +6,10 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  .topnav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; gap: 20px; align-items: center; }
+  .topnav a { color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
+  .topnav a:hover { color: var(--primary); }
+  .topnav .spacer { flex: 1; }
   main { max-width: 980px; margin: 0 auto; padding: 24px; }
   h1 { font-size: 22px; } h2 { font-size: 17px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
@@ -39,7 +43,8 @@
   .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
   .tabs button { background: transparent; color: var(--muted); border: 1px solid var(--border); }
   .tabs button.active { background: var(--primary); color: white; border-color: var(--primary); }
-  .typed-signature-preview { font-family: "Brush Script MT", cursive; font-size: 32px; padding: 14px; border: 1px dashed var(--border); border-radius: 8px; min-height: 60px; }
+  /* Matches the PDF's actual embedded font (pdf-lib's built-in Helvetica-Oblique) so what signers see here is what actually appears on the document - a cursive-looking preview here would be misleading. */
+  .typed-signature-preview { font-family: Helvetica, Arial, sans-serif; font-style: italic; font-size: 28px; color: #1a2680; padding: 14px; border: 1px dashed var(--border); border-radius: 8px; min-height: 60px; }
 </style>
 
 <script type="module">
@@ -81,6 +86,43 @@
         var result = reader.result; // data:...;base64,XXXX
         resolve(result.slice(result.indexOf(",") + 1));
       };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // --- Uploaded signature image: strip a white/near-white background ---
+  // A photographed or scanned signature almost always has an opaque white
+  // background baked into its pixels (JPEG can't have transparency at all;
+  // a plain PNG export usually doesn't either), which would otherwise paste
+  // a visible white box onto the document. Loads the file into a canvas,
+  // makes near-white pixels transparent, and always re-exports as PNG
+  // (regardless of the original format) - so every uploaded signature ends
+  // up looking the same way a drawn one does: just ink, no background.
+  function imageFileToTransparentPngBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var data = imageData.data;
+        var WHITE_THRESHOLD = 240; // pixels this bright (on all of R,G,B) become transparent
+        for (var i = 0; i < data.length; i += 4) {
+          if (data[i] >= WHITE_THRESHOLD && data[i + 1] >= WHITE_THRESHOLD && data[i + 2] >= WHITE_THRESHOLD) {
+            data[i + 3] = 0;
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+        var dataUrl = canvas.toDataURL("image/png");
+        resolve(dataUrl.slice(dataUrl.indexOf(",") + 1));
+      };
+      img.onerror = reject;
+      var reader = new FileReader();
+      reader.onload = function () { img.src = reader.result; };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });

@@ -1,14 +1,18 @@
 /**
- * Web App entry point. Routes ?page=create|owner|sign to the matching
- * HtmlService template. Google sign-in (restricted to the Workspace domain
- * via appsscript.json) has already happened before this ever runs.
+ * Web App entry point. Routes ?page=home|create|owner|sign to the matching
+ * HtmlService template (home is the default when no page is given). Google
+ * sign-in (restricted to the Workspace domain via appsscript.json) has
+ * already happened before this ever runs.
  */
 function doGet(e) {
-  var page = (e && e.parameter && e.parameter.page) || "create";
+  var page = (e && e.parameter && e.parameter.page) || "home";
   var docId = (e && e.parameter && e.parameter.doc) || "";
 
   var templateName =
-    page === "owner" ? "Views/OwnerDashboard" : page === "sign" ? "Views/SignerView" : "Views/CreateEnvelope";
+    page === "create" ? "Views/CreateEnvelope" :
+    page === "owner" ? "Views/OwnerDashboard" :
+    page === "sign" ? "Views/SignerView" :
+    "Views/Home";
 
   var template = HtmlService.createTemplateFromFile(templateName);
   template.documentId = docId;

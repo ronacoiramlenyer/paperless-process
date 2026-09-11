@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Views/Shared'); ?>
+</head>
+<body>
+<div class="topnav"><a href="?page=home">🏠 Home</a><span class="spacer"></span><a href="?page=create">+ New envelope</a></div>
+<main id="app">
+  <p class="empty-state">Loading…</p>
+</main>
+
+<script>
+  function escapeHtml4(s) { return String(s || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmtDate2(s) { return s ? new Date(s).toLocaleString() : "—"; }
+
+  runServer("listMyDocuments").then(renderHome).catch(function (err) {
+    document.getElementById("app").innerHTML = '<div class="card error-banner"></div>';
+    document.querySelector(".error-banner").textContent = err.message || String(err);
+  });
+
+  function renderHome(data) {
+    var html = '<div class="card"><h1>Paperless Process</h1><p class="muted">Upload a PDF, add signers, click to place their signature, send — signers sign right in the browser. <a href="?page=create">Start a new envelope →</a></p></div>';
+
+    html += '<div class="card"><h2>Documents I need to sign</h2>';
+    if (data.toSign.length === 0) {
+      html += '<p class="muted">Nothing waiting on you right now.</p>';
+    } else {
+      html += '<table><thead><tr><th>Title</th><th>From</th><th>Status</th><th>Sent</th><th></th></tr></thead><tbody>';
+      data.toSign.forEach(function (row) {
+        var d = row.document;
+        html += '<tr><td>' + escapeHtml4(d.title) + '</td><td>' + escapeHtml4(d.ownerName) + '</td>';
+        html += '<td><span class="status-pill status-' + row.myStatus + '">' + row.myStatus + '</span></td>';
+        html += '<td>' + fmtDate2(d.createdAt) + '</td>';
+        html += '<td><a href="?page=sign&doc=' + encodeURIComponent(d.id) + '"><button type="button" class="secondary">Open</button></a></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><h2>Documents I\'ve sent</h2>';
+    if (data.owned.length === 0) {
+      html += '<p class="muted">You haven\'t sent anything yet.</p>';
+    } else {
+      html += '<table><thead><tr><th>Title</th><th>Status</th><th>Routing</th><th>Sent</th><th></th></tr></thead><tbody>';
+      data.owned.forEach(function (d) {
+        html += '<tr><td>' + escapeHtml4(d.title) + '</td>';
+        html += '<td><span class="status-pill status-' + d.status + '">' + d.status + '</span></td>';
+        html += '<td>' + escapeHtml4(d.routingMode) + '</td>';
+        html += '<td>' + fmtDate2(d.createdAt) + '</td>';
+        html += '<td><a href="?page=owner&doc=' + encodeURIComponent(d.id) + '"><button type="button" class="secondary">Open</button></a></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+
+    document.getElementById("app").innerHTML = html;
+  }
+</script>
+</body>
+</html>

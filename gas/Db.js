@@ -211,6 +211,18 @@ function listAuditLogByDocumentId(documentId) {
     .sort(function (a, b) { return new Date(a.createdAt) - new Date(b.createdAt); });
 }
 
+function listDocumentsByOwnerEmail(email) {
+  var lower = String(email).toLowerCase();
+  return readAll_(SHEET_NAMES.DOCUMENTS)
+    .filter(function (d) { return String(d.ownerEmail).toLowerCase() === lower; })
+    .sort(function (a, b) { return new Date(b.createdAt) - new Date(a.createdAt); });
+}
+
+function listSignerRowsByEmail(email) {
+  var lower = String(email).toLowerCase();
+  return readAll_(SHEET_NAMES.SIGNERS).filter(function (s) { return String(s.email).toLowerCase() === lower; });
+}
+
 function getFieldForSigner(signerId) {
   var rows = readAll_(SHEET_NAMES.FIELDS);
   for (var i = 0; i < rows.length; i++) if (rows[i].signerId === signerId) return rows[i];

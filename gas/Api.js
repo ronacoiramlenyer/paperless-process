@@ -127,6 +127,20 @@ function getSignSession(documentId) {
   };
 }
 
+/** Powers the Home page: everything the signed-in user sent, and everything they've been asked to sign. */
+function listMyDocuments() {
+  var email = currentUserEmail_();
+  var owned = listDocumentsByOwnerEmail(email);
+  var toSign = listSignerRowsByEmail(email)
+    .map(function (s) {
+      var document = getDocumentById(s.documentId);
+      return document ? { document: document, myStatus: s.status } : null;
+    })
+    .filter(function (x) { return x !== null; })
+    .sort(function (a, b) { return new Date(b.document.createdAt) - new Date(a.document.createdAt); });
+  return { owned: owned, toSign: toSign };
+}
+
 /** Used by both the owner dashboard (preview/download) and the signer view (context while signing). */
 async function getPdfBytesForDownload(documentId) {
   var email = currentUserEmail_();

@@ -5,6 +5,7 @@
   <?!= include('Views/Shared'); ?>
 </head>
 <body>
+<div class="topnav"><a href="?page=home">🏠 Home</a><span class="spacer"></span></div>
 <main id="app">
   <p class="empty-state">Loading…</p>
 </main>
@@ -113,11 +114,14 @@
       if (file.size > 5 * 1024 * 1024) {
         return showError(sigError, "Signature image exceeds the 5MB limit.");
       }
-      fileToBase64(file).then(function (base64) {
-        uploadedImage = { base64: base64, mimeType: file.type };
+      imageFileToTransparentPngBase64(file).then(function (base64) {
+        // Always PNG now - the conversion re-exports as PNG regardless of the source format, with a transparent background.
+        uploadedImage = { base64: base64, mimeType: "image/png" };
         var preview = document.getElementById("sigPreview");
-        preview.src = "data:" + file.type + ";base64," + base64;
+        preview.src = "data:image/png;base64," + base64;
         preview.style.display = "";
+      }).catch(function () {
+        showError(sigError, "Couldn't process that image. Try a different file.");
       });
     });
 

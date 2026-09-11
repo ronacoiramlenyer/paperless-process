@@ -16,6 +16,15 @@ or signer identity ever leaves your Workspace domain:
   Structured data (documents, signers, fields, audit log) lives in a
   Google Sheet ("Paperless Process — Database"), both auto-created on
   first use.
+- **Home page** (`?page=home`, the default landing page): every signed-in
+  user sees the documents they've sent and the documents waiting on their
+  signature, each with live status, plus a "+ New envelope" link. A simple
+  nav bar (Home / New envelope) appears on every page.
+- **Signing options**: draw with the mouse/trackpad, type your name, or
+  upload an actual photo/scan of your signature (PNG or JPEG) — uploads are
+  automatically background-stripped (near-white pixels made transparent)
+  client-side before sending, so a signature photographed on white paper
+  doesn't paste a visible white box onto the document.
 - **Email**: sent via `GmailApp` as the deploying account — no API key, no
   third-party service, no domain/sender verification. Deliverability is
   exactly as good as that account emailing by hand.
