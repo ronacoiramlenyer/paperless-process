@@ -1,0 +1,159 @@
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #ffffff; --border: #e2e5ec; --text: #1c2130;
+    --muted: #667085; --primary: #2f5fff; --primary-dark: #1f45cc;
+    --success: #17845a; --danger: #c93a3a; --warning: #b8791a; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 980px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; } h2 { font-size: 17px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], input[type="email"], select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: var(--surface); color: var(--text); }
+  .field { margin-bottom: 14px; }
+  .row { display: flex; gap: 12px; } .row > * { flex: 1; }
+  button { cursor: pointer; border: none; border-radius: 8px; padding: 10px 16px; font-size: 14px; font-weight: 600; background: var(--primary); color: white; }
+  button:hover { background: var(--primary-dark); }
+  button:disabled { background: #b7c0d8; cursor: not-allowed; }
+  button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  button.secondary:hover { background: #f0f1f5; }
+  button.danger { background: var(--danger); }
+  .signer-row { display: flex; gap: 10px; align-items: flex-end; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .pdf-page-wrap { position: relative; display: inline-block; border: 1px solid var(--border); margin-bottom: 12px; }
+  .pdf-page-wrap canvas { display: block; }
+  .field-box { position: absolute; border: 2px solid var(--primary); background: rgba(47,95,255,.12); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--primary-dark); pointer-events: none; }
+  .status-pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+  .status-pending { background: #eef0f5; color: var(--muted); }
+  .status-viewed { background: #fdf1de; color: var(--warning); }
+  .status-signed, .status-completed { background: #e2f6ed; color: var(--success); }
+  .status-declined, .status-voided { background: #fbe6e6; color: var(--danger); }
+  .status-sent { background: #eaf0ff; color: var(--primary-dark); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .empty-state { color: var(--muted); text-align: center; padding: 40px 0; }
+  .error-banner { background: #fbe6e6; color: var(--danger); border: 1px solid #f3bcbc; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+  .success-banner { background: #e2f6ed; color: var(--success); border: 1px solid #b9e6cf; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .sig-pad { border: 1px dashed var(--border); border-radius: 8px; touch-action: none; background: #fff; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tabs button { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .tabs button.active { background: var(--primary); color: white; border-color: var(--primary); }
+  .typed-signature-preview { font-family: "Brush Script MT", cursive; font-size: 32px; padding: 14px; border: 1px dashed var(--border); border-radius: 8px; min-height: 60px; }
+</style>
+
+<script type="module">
+  import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+  window.pdfjsLib = pdfjsLib;
+  window.__pdfjsReady = true;
+  window.dispatchEvent(new Event("pdfjs-ready"));
+</script>
+
+<script>
+  // --- google.script.run, promisified ---
+  function runServer(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (err) { reject(new Error(err && err.message ? err.message : String(err))); })
+        [fnName].apply(null, args);
+    });
+  }
+
+  function waitForPdfJs() {
+    if (window.__pdfjsReady) return Promise.resolve();
+    return new Promise(function (resolve) { window.addEventListener("pdfjs-ready", resolve, { once: true }); });
+  }
+
+  // --- base64 <-> bytes ---
+  function base64ToUint8Array(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var result = reader.result; // data:...;base64,XXXX
+        resolve(result.slice(result.indexOf(",") + 1));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // --- PDF page rendering (mirrors the original React app's PdfPageCanvas) ---
+  // Renders page `pageIndex` (0-based) of `pdfDoc` onto `canvas` at `scale`.
+  // Returns { widthPoints, heightPoints } (the *unscaled* PDF page size, used
+  // for converting between click pixel coordinates and PDF point coordinates).
+  function renderPdfPage(pdfDoc, pageIndex, scale, canvas) {
+    return pdfDoc.getPage(pageIndex + 1).then(function (page) {
+      var unscaled = page.getViewport({ scale: 1 });
+      var viewport = page.getViewport({ scale: scale });
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      var ctx = canvas.getContext("2d");
+      return page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function () {
+        return { widthPoints: unscaled.width, heightPoints: unscaled.height };
+      });
+    });
+  }
+
+  // --- Signature pad (pointer-events canvas drawing) ---
+  function initSignaturePad(canvas) {
+    var ctx = canvas.getContext("2d");
+    var dpr = window.devicePixelRatio || 1;
+    var cssWidth = canvas.clientWidth || 420;
+    var cssHeight = canvas.clientHeight || 150;
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#1c2130";
+
+    var drawing = false;
+    var hasInk = false;
+
+    function pos(e) {
+      var rect = canvas.getBoundingClientRect();
+      var point = e.touches ? e.touches[0] : e;
+      return { x: point.clientX - rect.left, y: point.clientY - rect.top };
+    }
+    canvas.addEventListener("pointerdown", function (e) {
+      drawing = true;
+      var p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener("pointermove", function (e) {
+      if (!drawing) return;
+      var p = pos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      hasInk = true;
+    });
+    function stop() { drawing = false; }
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointerleave", stop);
+
+    return {
+      clear: function () { ctx.clearRect(0, 0, canvas.width, canvas.height); hasInk = false; },
+      isEmpty: function () { return !hasInk; },
+      toBase64Png: function () {
+        var dataUrl = canvas.toDataURL("image/png");
+        return dataUrl.slice(dataUrl.indexOf(",") + 1);
+      },
+    };
+  }
+
+  function showError(containerEl, message) {
+    containerEl.innerHTML = '<div class="error-banner"></div>';
+    containerEl.querySelector(".error-banner").textContent = message;
+  }
+</script>

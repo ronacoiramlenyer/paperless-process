@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Views/Shared'); ?>
+</head>
+<body>
+<main id="app">
+  <p class="empty-state">Loading…</p>
+</main>
+
+<script>
+  var documentId = <?!= JSON.stringify(documentId) ?>;
+  var SCALE = 1.2;
+
+  function render(html) { document.getElementById("app").innerHTML = html; }
+
+  if (!documentId) {
+    render('<div class="card error-banner">No document specified.</div>');
+  } else {
+    runServer("getSignSession", documentId).then(renderSession).catch(function (err) {
+      render('<div class="card error-banner"></div>');
+      document.querySelector(".error-banner").textContent = err.message || String(err);
+    });
+  }
+
+  function renderSession(session) {
+    var doc = session.document, signer = session.signer;
+
+    if (signer.status === "signed") {
+      render(
+        '<div class="card"><h1>You\'re all set</h1>' +
+        '<p class="success-banner">You signed “' + escapeHtml2(doc.title) + '”. ' +
+        (doc.status === "completed" ? "Everyone has now signed." : "Waiting on the remaining signer(s).") + "</p>" +
+        '<button type="button" class="secondary" id="viewBtn">View / download document</button></div>'
+      );
+      document.getElementById("viewBtn").addEventListener("click", function () { downloadPdf(this); });
+      return;
+    }
+
+    if (signer.status === "declined") {
+      render(
+        '<div class="card"><h1>Declined</h1><p>You declined to sign “' + escapeHtml2(doc.title) + '”.</p>' +
+        (signer.declineReason ? '<p class="muted">Reason: ' + escapeHtml2(signer.declineReason) + "</p>" : "") + "</div>"
+      );
+      return;
+    }
+
+    if (doc.status === "voided") {
+      render('<div class="card"><h1>No longer available</h1><p class="muted">This envelope was voided because another signer declined.</p></div>');
+      return;
+    }
+
+    if (!session.canSign) {
+      render(
+        '<div class="card"><h1>' + escapeHtml2(doc.title) + "</h1>" +
+        '<p class="muted">This document signs in order. You\'ll be able to sign as soon as <strong>' + escapeHtml2(session.waitingOnName) + "</strong> finishes.</p>" +
+        '<button type="button" class="secondary" id="recheckBtn">Check again</button></div>'
+      );
+      document.getElementById("recheckBtn").addEventListener("click", function () {
+        runServer("getSignSession", documentId).then(renderSession);
+      });
+      return;
+    }
+
+    render(
+      '<div class="card"><h1>' + escapeHtml2(doc.title) + "</h1>" +
+      '<p class="muted">Signing as ' + escapeHtml2(signer.name) + " (" + escapeHtml2(signer.email) + '). Review the document below, then sign — no download needed.</p></div>' +
+      '<div class="card"><h2>Document</h2><div id="pages"><p class="muted">Loading document…</p></div></div>' +
+      '<div class="card"><h2>Your signature</h2><div id="sigError"></div>' +
+      '<div class="tabs"><button type="button" id="tabDraw" class="active">Draw</button><button type="button" id="tabType">Type</button></div>' +
+      '<div id="drawPane"><canvas class="sig-pad" id="sigCanvas" style="width:420px;height:150px"></canvas>' +
+      '<div style="margin-top:8px"><button type="button" class="secondary" id="clearBtn">Clear</button></div></div>' +
+      '<div id="typePane" style="display:none"><div class="field"><input type="text" id="typedText" placeholder="Type your full name"></div>' +
+      '<div class="typed-signature-preview" id="typedPreview"></div></div>' +
+      '<div style="display:flex;gap:10px;margin-top:16px">' +
+      '<button type="button" id="signBtn">Sign document</button>' +
+      '<button type="button" class="danger" id="declineBtn">Decline to sign</button></div></div>'
+    );
+
+    var mode = "draw";
+    var pad = initSignaturePad(document.getElementById("sigCanvas"));
+
+    document.getElementById("tabDraw").addEventListener("click", function () { setMode("draw"); });
+    document.getElementById("tabType").addEventListener("click", function () { setMode("type"); });
+    function setMode(m) {
+      mode = m;
+      document.getElementById("tabDraw").classList.toggle("active", m === "draw");
+      document.getElementById("tabType").classList.toggle("active", m === "type");
+      document.getElementById("drawPane").style.display = m === "draw" ? "" : "none";
+      document.getElementById("typePane").style.display = m === "type" ? "" : "none";
+    }
+    document.getElementById("clearBtn").addEventListener("click", function () { pad.clear(); });
+    document.getElementById("typedText").addEventListener("input", function (e) {
+      document.getElementById("typedPreview").textContent = e.target.value;
+    });
+
+    waitForPdfJs().then(function () {
+      return runServer("getPdfBytesForDownload", documentId);
+    }).then(function (base64) {
+      return pdfjsLib.getDocument({ data: base64ToUint8Array(base64) }).promise;
+    }).then(function (pdfDoc) {
+      var pagesEl = document.getElementById("pages");
+      pagesEl.innerHTML = "";
+      var renders = [];
+      for (var i = 0; i < pdfDoc.numPages; i++) renders.push(renderOnePage(pdfDoc, i, session.field, pagesEl));
+      return Promise.all(renders);
+    });
+
+    document.getElementById("signBtn").addEventListener("click", function () {
+      var sigError = document.getElementById("sigError");
+      sigError.innerHTML = "";
+      if (mode === "type" && !document.getElementById("typedText").value.trim()) {
+        return showError(sigError, "Type your name to sign.");
+      }
+      if (mode === "draw" && pad.isEmpty()) {
+        return showError(sigError, "Draw your signature to sign.");
+      }
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Signing…";
+      var typedText = mode === "type" ? document.getElementById("typedText").value.trim() : null;
+      var imageBase64 = mode === "draw" ? pad.toBase64Png() : null;
+      runServer("submitSignature", documentId, mode, typedText, imageBase64).then(function () {
+        return runServer("getSignSession", documentId);
+      }).then(renderSession).catch(function (err) {
+        showError(sigError, err.message || String(err));
+        btn.disabled = false;
+        btn.textContent = "Sign document";
+      });
+    });
+
+    document.getElementById("declineBtn").addEventListener("click", function () {
+      var reason = window.prompt("Reason for declining (optional):") || "";
+      var btn = this;
+      btn.disabled = true;
+      runServer("declineSignature", documentId, reason).then(function () {
+        return runServer("getSignSession", documentId);
+      }).then(renderSession).catch(function (err) {
+        showError(document.getElementById("sigError"), err.message || String(err));
+        btn.disabled = false;
+      });
+    });
+  }
+
+  function renderOnePage(pdfDoc, pageIndex, field, pagesEl) {
+    var wrap = document.createElement("div");
+    wrap.className = "pdf-page-wrap";
+    var canvas = document.createElement("canvas");
+    wrap.appendChild(canvas);
+    pagesEl.appendChild(wrap);
+    return renderPdfPage(pdfDoc, pageIndex, SCALE, canvas).then(function (size) {
+      wrap.style.width = canvas.width + "px";
+      wrap.style.height = canvas.height + "px";
+      if (field.pageIndex === pageIndex) {
+        var box = document.createElement("div");
+        box.className = "field-box";
+        box.style.left = (field.x * SCALE) + "px";
+        box.style.top = (size.heightPoints * SCALE - (field.y + field.height) * SCALE) + "px";
+        box.style.width = (field.width * SCALE) + "px";
+        box.style.height = (field.height * SCALE) + "px";
+        box.textContent = "Sign here";
+        wrap.appendChild(box);
+      }
+    });
+  }
+
+  function downloadPdf(btn) {
+    btn.disabled = true;
+    btn.textContent = "Loading…";
+    runServer("getPdfBytesForDownload", documentId).then(function (base64) {
+      var bytes = base64ToUint8Array(base64);
+      var blob = new Blob([bytes], { type: "application/pdf" });
+      var url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      btn.disabled = false;
+      btn.textContent = "View / download document";
+    });
+  }
+
+  function escapeHtml2(s) { return String(s || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+</script>
+</body>
+</html>

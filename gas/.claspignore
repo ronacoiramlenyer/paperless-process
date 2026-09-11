@@ -1,0 +1,9 @@
+**/**
+!appsscript.json
+!Code.js
+!Db.js
+!Pdf.js
+!Pdf.generated.js
+!Api.js
+!Email.js
+!Views/*.html

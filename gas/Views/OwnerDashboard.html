@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Views/Shared'); ?>
+</head>
+<body>
+<main id="app">
+  <p class="empty-state">Loading…</p>
+</main>
+
+<script>
+  var documentId = <?!= JSON.stringify(documentId) ?>;
+
+  function escapeHtml3(s) { return String(s || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fmtDate(s) { return s ? new Date(s).toLocaleString() : "—"; }
+
+  function load() {
+    return runServer("getOwnerDashboard", documentId).then(renderDashboard).catch(function (err) {
+      document.getElementById("app").innerHTML = '<div class="card error-banner"></div>';
+      document.querySelector(".error-banner").textContent = err.message || String(err);
+    });
+  }
+
+  function renderDashboard(data) {
+    var doc = data.document, signers = data.signers, auditLog = data.auditLog;
+    var signedCount = signers.filter(function (s) { return s.status === "signed"; }).length;
+
+    var html = '';
+    html += '<div class="card"><h1>' + escapeHtml3(doc.title) + ' <span class="status-pill status-' + doc.status + '">' + doc.status + '</span></h1>';
+    html += '<p class="muted">' + signedCount + ' of ' + signers.length + ' signed · routing: ' + doc.routingMode + ' · created ' + fmtDate(doc.createdAt) + '</p>';
+    html += '<div class="row" style="margin-top:12px"><button type="button" class="secondary" id="viewBtn">View PDF</button>';
+    html += '<button type="button" id="downloadBtn">Download ' + (doc.status === "completed" ? "signed" : "current") + ' PDF</button></div></div>';
+
+    html += '<div class="card"><h2>Signers</h2><table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Status</th><th>Signed at</th></tr></thead><tbody>';
+    signers.forEach(function (s) {
+      html += '<tr><td>' + (s.orderIndex + 1) + '</td><td>' + escapeHtml3(s.name) + '</td><td>' + escapeHtml3(s.email) + '</td>';
+      html += '<td><span class="status-pill status-' + s.status + '">' + s.status + '</span>';
+      if (s.status === "declined" && s.declineReason) html += '<div class="muted">' + escapeHtml3(s.declineReason) + '</div>';
+      html += '</td><td>' + fmtDate(s.signedAt) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    html += '<div class="card"><h2>Audit trail</h2><table><thead><tr><th>Event</th><th>By</th><th>Detail</th><th>When</th></tr></thead><tbody>';
+    auditLog.forEach(function (a) {
+      html += '<tr><td>' + escapeHtml3(a.eventType) + '</td><td>' + escapeHtml3(a.actingEmail) + '</td><td>' + escapeHtml3(a.detail) + '</td><td>' + fmtDate(a.createdAt) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    document.getElementById("app").innerHTML = html;
+    document.getElementById("viewBtn").addEventListener("click", function () { openPdf(this, false); });
+    document.getElementById("downloadBtn").addEventListener("click", function () { openPdf(this, true); });
+  }
+
+  function openPdf(btn, download) {
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Loading…";
+    runServer("getPdfBytesForDownload", documentId).then(function (base64) {
+      var bytes = base64ToUint8Array(base64);
+      var blob = new Blob([bytes], { type: "application/pdf" });
+      var url = URL.createObjectURL(blob);
+      if (download) {
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "document.pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        window.open(url, "_blank");
+      }
+      btn.disabled = false;
+      btn.textContent = original;
+    });
+  }
+
+  load();
+  setInterval(load, 8000);
+</script>
+</body>
+</html>
