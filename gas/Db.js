@@ -229,14 +229,24 @@ function getFieldForSigner(signerId) {
   return null;
 }
 
-/** Looks up the signer row for a document matching a specific (Google-verified) email. */
+/**
+ * Looks up the signer row for a document matching a specific
+ * (Google-verified) email. Normally there's at most one match - but the
+ * same person can legitimately be listed as more than one signer on the
+ * same document (e.g. signing as both preparer and approver), so when
+ * there are multiple rows for this email, prefer whichever one is still
+ * actionable (not yet signed/declined) rather than always the first -
+ * otherwise, once the earliest one is signed, every future visit
+ * (including the email link for a *later* role) would keep resolving back
+ * to that already-completed row instead of the next pending one.
+ */
 function getSignerForDocumentByEmail(documentId, email) {
-  var rows = listSignersByDocumentId(documentId);
+  var rows = listSignersByDocumentId(documentId); // sorted by orderIndex
   var lower = String(email).toLowerCase();
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i].email).toLowerCase() === lower) return rows[i];
-  }
-  return null;
+  var matches = rows.filter(function (r) { return String(r.email).toLowerCase() === lower; });
+  if (matches.length === 0) return null;
+  var actionable = matches.filter(function (r) { return r.status !== "signed" && r.status !== "declined"; });
+  return actionable.length > 0 ? actionable[0] : matches[matches.length - 1];
 }
 
 function appendAudit_(documentId, signerId, eventType, detail, actingEmail) {
