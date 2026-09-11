@@ -33,7 +33,12 @@ function bytesToBase64_(bytes) {
 }
 
 function base64ToBytes_(b64) {
-  return Utilities.base64Decode(b64);
+  // Utilities.base64Decode() returns Apps Script's own byte-array type, not
+  // a real Uint8Array - pdf-lib's internal type checks reject it directly
+  // (confirmed live: "pdf must be of type string or Uint8Array or
+  // ArrayBuffer, but was actually of type NaN"). Wrapping it wraps the
+  // *values* into a genuine same-realm Uint8Array instance.
+  return new Uint8Array(Utilities.base64Decode(b64));
 }
 
 /** Saves raw bytes (from a client upload) as a Drive file in the app folder; returns the Drive file id. */
