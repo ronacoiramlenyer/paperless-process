@@ -17,10 +17,10 @@
       "migrations_dir": "migrations"
     }
   ],
-  "r2_buckets": [
+  "kv_namespaces": [
     {
       "binding": "DOCS",
-      "bucket_name": "paperless-process-docs"
+      "id": "08d009fa2f684ca1828dd171342427af"
     }
   ],
   "vars": {

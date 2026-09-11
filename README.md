@@ -27,7 +27,7 @@ signers never race on the same file.
 
 - **Cloudflare Workers** ([Hono](https://hono.dev)) — API
 - **Cloudflare D1** — envelopes, signers, fields, audit log
-- **Cloudflare R2** — original PDFs + drawn signature images
+- **Cloudflare Workers KV** — original PDFs + drawn signature images
 - **React + Vite**, served as static assets by the same Worker
 - **pdf.js** for in-browser rendering, **pdf-lib** for server-side signature
   stamping/compositing
@@ -56,11 +56,14 @@ run `npm run build && npm run dev:worker` and open http://localhost:8787.
 1. Create the real resources (once):
    ```bash
    npx wrangler d1 create paperless-process-db
-   npx wrangler r2 bucket create paperless-process-docs
+   npx wrangler kv namespace create paperless-process-docs
    ```
-   Copy the `database_id` from the first command's output into
-   `wrangler.jsonc` (`d1_databases[0].database_id`), replacing the
-   `REPLACE_WITH_D1_DATABASE_ID` placeholder.
+   Copy the `database_id` / KV `id` from each command's output into
+   `wrangler.jsonc` (`d1_databases[0].database_id` and
+   `kv_namespaces[0].id`).
+   (Storage uses Workers KV rather than R2 — R2 requires adding a payment
+   method to your Cloudflare account even to use its free tier; KV doesn't.
+   KV values cap at 25MB, comfortably above this app's 20MB PDF limit.)
 2. Apply the schema to the remote database:
    ```bash
    npm run db:migrate:remote

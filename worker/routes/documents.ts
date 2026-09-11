@@ -56,7 +56,7 @@ documentsRoute.post("/", async (c) => {
 
   const documentId = newId();
   const pdfKey = `documents/${documentId}.pdf`;
-  await c.env.DOCS.put(pdfKey, bytes, { httpMetadata: { contentType: "application/pdf" } });
+  await c.env.DOCS.put(pdfKey, bytes);
 
   const { document, signers } = await createDocument(c.env, input, documentId, pdfKey, pageCount);
 
@@ -103,13 +103,13 @@ documentsRoute.get("/:ownerToken/pdf", async (c) => {
 });
 
 export async function renderComposite(env: Env, documentId: string, pdfKey: string): Promise<Uint8Array | null> {
-  const [obj, signers, fields] = await Promise.all([
-    env.DOCS.get(pdfKey),
+  const [originalBuf, signers, fields] = await Promise.all([
+    env.DOCS.get(pdfKey, "arrayBuffer"),
     listSignersByDocumentId(env, documentId),
     listFieldsByDocumentId(env, documentId),
   ]);
-  if (!obj) return null;
-  const originalBytes = new Uint8Array(await obj.arrayBuffer());
+  if (!originalBuf) return null;
+  const originalBytes = new Uint8Array(originalBuf);
 
   const fieldBySignerId = new Map(fields.map((f) => [f.signer_id, f]));
   const signed = await Promise.all(
@@ -120,8 +120,8 @@ export async function renderComposite(env: Env, documentId: string, pdfKey: stri
         if (!field) return null;
         let signatureImageBytes: Uint8Array | null = null;
         if (signer.signature_type === "draw" && signer.signature_image_key) {
-          const imgObj = await env.DOCS.get(signer.signature_image_key);
-          if (imgObj) signatureImageBytes = new Uint8Array(await imgObj.arrayBuffer());
+          const imgBuf = await env.DOCS.get(signer.signature_image_key, "arrayBuffer");
+          if (imgBuf) signatureImageBytes = new Uint8Array(imgBuf);
         }
         return { signer, field, signatureImageBytes };
       })

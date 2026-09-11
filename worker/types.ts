@@ -1,6 +1,6 @@
 export interface Env {
   DB: D1Database;
-  DOCS: R2Bucket;
+  DOCS: KVNamespace;
   ASSETS: Fetcher;
   APP_BASE_URL: string;
 }

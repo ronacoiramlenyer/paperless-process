@@ -98,7 +98,7 @@ signRoute.post("/:token", async (c) => {
     if (pngBytes.length > 2 * 1024 * 1024) return c.json({ error: "Signature image too large" }, 400);
 
     const signatureImageKey = `signatures/${signer.id}-${newId()}.png`;
-    await c.env.DOCS.put(signatureImageKey, pngBytes, { httpMetadata: { contentType: "image/png" } });
+    await c.env.DOCS.put(signatureImageKey, pngBytes);
 
     const result = await recordSignature(c.env, signer, { signatureType: "draw", typedText: null, signatureImageKey }, ip, userAgent);
     return c.json({ allSigned: result.allSigned, documentStatus: result.document.status });
