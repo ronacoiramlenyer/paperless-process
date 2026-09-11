@@ -17,6 +17,12 @@ function doGet(e) {
   var template = HtmlService.createTemplateFromFile(templateName);
   template.documentId = docId;
   template.userEmail = Session.getActiveUser().getEmail();
+  // Apps Script serves page content from a sandboxed googleusercontent.com
+  // iframe URL, not the real app URL - relative links (<a href="?page=...">)
+  // resolve against THAT iframe URL unless <base href> explicitly overrides
+  // it (confirmed live: clicking a nav link landed on a blank
+  // ".../userCodeAppPanel?page=create" URL instead of the real app).
+  template.appUrl = ScriptApp.getService().getUrl();
 
   return template
     .evaluate()
