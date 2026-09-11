@@ -11,7 +11,7 @@ var TEST_MINIMAL_PDF_BASE64 =
 
 /** Step 1: confirms the pdf-lib bundle + byte handling works for real. */
 async function testPdfCore() {
-  var bytes = Utilities.base64Decode(TEST_MINIMAL_PDF_BASE64);
+  var bytes = base64ToBytes_(TEST_MINIMAL_PDF_BASE64); // uses the Pdf.js helper - do not call Utilities.base64Decode() directly, see its comment
   var count = await getPdfPageCount(bytes);
   Logger.log("Page count: " + count);
 }
