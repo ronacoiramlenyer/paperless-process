@@ -127,6 +127,21 @@ same check, kept in the repo (`node verify-bundle.mjs`, dev-only, not
 pushed to Apps Script) in case the bundling step ever needs re-validating
 after a pdf-lib upgrade.
 
+**A gap that check didn't catch**: pdf-lib periodically calls
+`setTimeout(fn, 0)` internally while parsing/serializing PDFs with enough
+objects (a "yield so the browser stays responsive" trick, irrelevant but
+harmless in a server context) — Apps Script's server runtime has no
+`setTimeout` at all, and the tiny 1-object test fixture used both in
+`verify-bundle.mjs` and live testing never had enough objects to trigger
+it. It only surfaced once someone tested with a real, larger PDF. Fixed by
+polyfilling `setTimeout`/`clearTimeout` as synchronous no-op-wrapped calls
+in `Pdf.js` (there's no event loop to protect in a single Apps Script
+execution, so running immediately is correct, not just a workaround) — but
+it's a reminder that `verify-bundle.mjs` only proves the bundle *can* run
+in this environment, not that every code path within pdf-lib is exercised
+by a trivial fixture. Worth re-testing with a real, larger PDF after any
+pdf-lib version bump.
+
 ## Known simplifications / limitations
 
 - **10MB PDF limit** (vs. 20MB in the Cloudflare version) — conservative

@@ -13,6 +13,25 @@
 
 var DRIVE_FOLDER_NAME = "Paperless Process Documents";
 
+/**
+ * pdf-lib periodically calls setTimeout(fn, 0) internally (its `waitForTick`
+ * utility - a "yield so the browser tab stays responsive" trick used while
+ * parsing/serializing large PDFs with many objects). Apps Script's
+ * server-side V8 runtime has no setTimeout at all (confirmed live:
+ * "ReferenceError: setTimeout is not defined", only surfaced on a real,
+ * larger PDF - too few objects in the tiny test fixture to trigger it).
+ * There's no event loop or UI thread to protect here, so invoking
+ * synchronously is both safe and correct - not just a workaround.
+ * Function declarations (not `var x = function`) are hoisted and shared
+ * across all files in an Apps Script project's single global scope, so this
+ * is available everywhere regardless of file load order.
+ */
+function setTimeout(fn) {
+  fn();
+  return 0;
+}
+function clearTimeout() {}
+
 function getAppFolder_() {
   var props = PropertiesService.getScriptProperties();
   var folderId = props.getProperty("DRIVE_FOLDER_ID");
