@@ -24,7 +24,7 @@
     }
   ],
   "vars": {
-    "APP_BASE_URL": "http://localhost:8787",
+    "APP_BASE_URL": "https://paperless-process.learneasytoday.workers.dev",
     "EMAIL_FROM": "onboarding@resend.dev"
   }
 }
